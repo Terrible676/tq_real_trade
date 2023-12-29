@@ -16,7 +16,16 @@ import fcntl
 
 # to do list:
 # 换月问题
-# 
+
+def isTradingTime():
+    current_time = datetime.datetime.now()
+# 周日全天、周六凌晨3点之后到周一8点之前跳过
+    if current_time.weekday() == 6 or (current_time.weekday() == 0 and (current_time.hour < 9 )) or (current_time.weekday() == 5 and current_time.hour >= 3) or (current_time.hour > 15 and current_time.hour < 21) or (current_time.hour > 1 and current_time.hour < 9) or (current_time.hour > 12  and current_time.hour < 13):
+        return False
+    else:
+        return True
+    
+
 
 def write_target(SYMBOL, lots=1):
     file_path = "target_position.json"
@@ -30,9 +39,7 @@ def write_target(SYMBOL, lots=1):
             pass
         except json.JSONDecodeError:
             print(f"Error decoding JSON in file {file_path}.")
-        
         data[SYMBOL] = lots
-        
         # 将文件指针移到文件开头，以便写入数据
         json_file.seek(0)
         json_file.truncate()
@@ -56,6 +63,7 @@ def write_target(SYMBOL,lots=1):
     with open("target_position.json", "w") as json_file:
         json.dump(data, json_file)
 '''
+
 def strategy_jump_over(CONTRACT,PERIOD,api,lots=1):
     try:
         print("initializing jump over....")
@@ -74,10 +82,17 @@ def strategy_jump_over(CONTRACT,PERIOD,api,lots=1):
         except:
             print('custom print error.')
         while True:
+            if(not isTradingTime()):
+                print("Skipping...")
+                time.sleep(60)  # 等待1分钟，避免快速循环消耗资源
+                continue
             if (k_num == 0): #初始化运行程序时先运行一次仓位
                 pass
             else:
-                api.wait_update()
+                try:
+                    api.wait_update()
+                except:
+                    continue
             try:
                 if(k_num == 0 or api.is_changing(klines.iloc[-1], "datetime")): #实盘监控
                     klines.dropna()
@@ -87,8 +102,8 @@ def strategy_jump_over(CONTRACT,PERIOD,api,lots=1):
                         if(k_num > 0 and i<(len(klines)-1)): # 开始监听行情时，只运行最后一根k线
                             continue
                         try:
-                            open0 = klines.open.iloc[i+1]
-                            close1 = klines.close.iloc[i]
+                            open0 = klines.open.iloc[i-1]
+                            close1 = klines.close.iloc[i-2]
                             JumpRatio = (open0/close1-1)*100
                             #print(JumpRatio)
                             if(virtual_position!=1 and JumpRatio>0.7):
@@ -106,6 +121,7 @@ def strategy_jump_over(CONTRACT,PERIOD,api,lots=1):
             except:
                 print("data process failed.")
                 continue
+            time.sleep(1)
     
     except:
         print(CONTRACT," Jump Over start failed.")
@@ -129,10 +145,17 @@ def strategy_ma_single(CONTRACT,PERIOD,api,lots=1):
         except:
             print('custom print error.')
         while True:
+            if(not isTradingTime()):
+                print("Skipping...")
+                time.sleep(60)  # 等待1分钟，避免快速循环消耗资源
+                continue
             if (k_num == 0): #初始化运行程序时先运行一次仓位
                 pass
             else:
-                api.wait_update()
+                try:
+                    api.wait_update()
+                except:
+                    continue
             try:
                 if(k_num == 0 or api.is_changing(klines.iloc[-1], "datetime")): #实盘监控
                     klines.dropna()
@@ -151,7 +174,6 @@ def strategy_ma_single(CONTRACT,PERIOD,api,lots=1):
                             cp = klines.close.iloc[i]
                             condition1 = cp>ma158h
                             condition2 = cp<ma158l
-                            
                             #print(JumpRatio)
                             if(virtual_position!=1 and condition1):
                                 trade_time = klines.datetime.iloc[i]
@@ -170,7 +192,7 @@ def strategy_ma_single(CONTRACT,PERIOD,api,lots=1):
             except:
                 print("data process failed.")
                 continue
-    
+            time.sleep(1)
     except:
         print(CONTRACT," MA single start failed.")
 
@@ -188,9 +210,9 @@ def main():
     #contract_list = ['KQ.m@SHFE.rb']
     contract1 = 'KQ.m@INE.sc'
     contract2= 'KQ.m@SHFE.rb'
-    api[contract1]=TqApi(TqAccount("D东海期货", "5200979", "heyisheng99"), auth=TqAuth("heyisheng99", "heyisheng99"))
+    #api[contract1]=TqApi(TqAccount("D东海期货", "5200979", "heyisheng99"), auth=TqAuth("heyisheng99", "heyisheng99"))
     api[contract2]=TqApi(TqAccount("D东海期货", "5200979", "heyisheng99"), auth=TqAuth("heyisheng99", "heyisheng99")) 
-    thread1 =  threading.Thread(target=strategy_jump_over,args= (contract1, period,api[contract1], 1))
+    #thread1 =  threading.Thread(target=strategy_jump_over,args= (contract1, period,api[contract1], 1))
     thread2 = threading.Thread(target=strategy_ma_single,args= (contract2, period,api[contract2], 1))
     
     #thread1.start()

@@ -148,7 +148,7 @@ def monitor_file_changes(file_path):
             print(f"{file_path} content has changed. Reloading data...")
             current_hash = new_hash
             load_and_process_data()
-        time.sleep(1)  # 轮询间隔，可以根据实际需求调整
+        time.sleep(3)  # 轮询间隔，可以根据实际需求调整
 if __name__ == "__main__":
     # 初始加载数据
     #load_and_process_data()
